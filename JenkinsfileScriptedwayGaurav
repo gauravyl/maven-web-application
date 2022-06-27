@@ -9,7 +9,7 @@ node{
    echo "Build number is: ${env.BUILD_NUMBER}"
    
    
-   
+   Try{
     stage('CheckoutCode')
 {
     git branch: 'development', credentialsId: 'e30d218e-b0cd-486b-98f0-ea1163f81463', url: 'https://github.com/gauravyl/maven-web-application.git'
@@ -38,4 +38,12 @@ sshagent(['4dffdd44-0183-4343-a9b5-5d02bbdfcc02']) {
 }
     }
     */
+}catch(e){
+currentBuild.result = "FAILED"
+throw e
+}
+finally{
+sendSlackNotifications(currentBuild.result)
+}
+
 }
