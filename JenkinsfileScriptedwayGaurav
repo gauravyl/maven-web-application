@@ -9,7 +9,9 @@ node{
    echo "Build number is: ${env.BUILD_NUMBER}"
    
    
-   Try{
+   try{
+   sendSlackNotifications('STARTED')
+   
     stage('CheckoutCode')
 {
     git branch: 'development', credentialsId: 'e30d218e-b0cd-486b-98f0-ea1163f81463', url: 'https://github.com/gauravyl/maven-web-application.git'
@@ -49,7 +51,7 @@ sendSlackNotifications(currentBuild.result)
 }
 //Below code will use for slack notifications
 
-def sendSlackNotification(String buildStatus = 'STARTED') {
+def sendSlackNotifications(String buildStatus = 'STARTED') {
   
   
   buildStatus =  buildStatus ?: 'SUCCESSFUL'
