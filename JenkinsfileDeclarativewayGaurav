@@ -1,0 +1,115 @@
+pipeline
+{
+
+agent any
+
+tools {
+maven "maven 3.8.5"
+}
+//Build at every minute 
+
+triggers {
+  pollSCM ('* * * * *')
+}
+//Discard old builds
+
+options {
+  buildDiscarder logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')
+}
+
+ //Adding Time to the console output
+ {
+  timestamps()
+}
+
+
+stages{
+
+//CheckouteCode stage
+    stage ('CheckoutCode')
+	    {
+		steps{
+		    sendSlackNotifications('STARTED')
+	git branch: 'development', credentialsId: 'e30d218e-b0cd-486b-98f0-ea1163f81463', url: 'https://github.com/gauravyl/maven-web-application.git'
+	}
+  }
+
+//Build Stage
+
+stage ('Build')
+{
+steps{
+sh "mvn clean package"
+}
+}
+
+//Execute Sonarqube report
+
+stage ('ExecuteSonarQubeReport')
+{
+steps {
+sh "mvn sonar:sonar"
+}
+}
+
+//Upload Artifacts Report
+
+stage ('UploadArtifactsIntoNexus')
+{
+steps{
+sh "mvn deploy"
+}
+}
+
+stage ('DeployAppintoTomcatServer')
+{
+steps{
+sshagent(['4dffdd44-0183-4343-a9b5-5d02bbdfcc02']) {
+    sh "scp -o StrictHostKeyChecking=no target/maven-web-application.war ec2-user@172.31.45.10:/opt/apache-tomcat-9.0.63/webapps"
+}
+}
+}
+    
+    
+    
+    
+}//stages closing
+
+post {
+  
+  success {
+   sendSlackNotifications('SUCCESSFUL') 
+  }
+  failure {
+ sendSlackNotifications('FAILURE')
+  }
+}
+}//pipeline closing
+
+
+def sendSlackNotifications(String buildStatus = 'STARTED') {
+  
+  
+  buildStatus =  buildStatus ?: 'SUCCESSFUL'
+
+  // Default values
+  def colorName = 'RED'
+  def colorCode = '#FF0000'
+  def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+  def summary = "${subject} (${env.BUILD_URL})"
+
+  // Override default values based on build status
+  if (buildStatus == 'STARTED') {
+    color = 'YELLOW'
+    colorCode = '#FFFF00'
+  } else if (buildStatus == 'SUCCESSFUL') {
+    color = 'GREEN'
+    colorCode = '#00FF00'
+  } else {
+    color = 'RED'
+    colorCode = '#FF0000'
+  }
+
+  // Send notifications
+  slackSend (color: colorCode, message: summary, channel: 'walmart')
+}
